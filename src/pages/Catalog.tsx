@@ -42,10 +42,10 @@ export function Catalog() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-kiln-500">Buying matrix</p>
-          <h1 className="mt-1 text-2xl font-semibold">Industrial polymer catalogue</h1>
+          <h1 className="mt-1 text-xl font-semibold sm:text-2xl">Industrial polymer catalogue</h1>
           <p className="mt-1 text-sm text-mill-800/80">
             Prices are ex-works per Metric Ton. 10% volume discount applies when a single polymer exceeds{' '}
             {VOLUME_DISCOUNT_THRESHOLD_MT} MT. GST is levied at checkout.
@@ -54,7 +54,7 @@ export function Catalog() {
         <button
           type="button"
           onClick={() => setView('checkout')}
-          className="rounded-lg bg-mill-900 px-4 py-2 text-sm font-semibold text-white"
+          className="w-full rounded-lg bg-mill-900 px-4 py-2.5 text-sm font-semibold text-white sm:w-auto"
         >
           Open checkout
         </button>
@@ -69,14 +69,14 @@ export function Catalog() {
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {matrix.map((product) => {
           const quantity = qty[product.id] ?? 1;
           const discounted = quantity > VOLUME_DISCOUNT_THRESHOLD_MT;
           return (
             <article key={product.id} className="rounded-xl border border-mill-200 bg-white p-5 shadow-panel">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="font-mono text-xs text-kiln-500">{product.sku}</p>
                   <h2 className="text-xl font-semibold">
                     {product.polymer}{' '}
@@ -84,7 +84,7 @@ export function Catalog() {
                   </h2>
                   <p className="mt-1 text-sm text-mill-800/80">{product.description}</p>
                 </div>
-                <span className="rounded-md bg-mill-100 px-2 py-1 font-mono text-xs">
+                <span className="shrink-0 rounded-md bg-mill-100 px-2 py-1 font-mono text-xs">
                   {formatMt(product.availableStockMt, 0)} stock
                 </span>
               </div>
@@ -142,7 +142,7 @@ export function Catalog() {
                 </label>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <p className="text-sm">
                   {discounted ? (
                     <span className="font-medium text-emerald-700">
@@ -158,7 +158,7 @@ export function Catalog() {
                 <button
                   type="button"
                   onClick={() => add(product.id)}
-                  className="rounded-lg bg-kiln-500 px-4 py-2 text-sm font-semibold text-mill-950 hover:bg-kiln-400"
+                  className="w-full rounded-lg bg-kiln-500 px-4 py-2.5 text-sm font-semibold text-mill-950 hover:bg-kiln-400 sm:w-auto"
                 >
                   Add to Cart
                 </button>

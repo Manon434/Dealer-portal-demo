@@ -84,7 +84,7 @@ export function Ledger() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-kiln-500">Credit Control</p>
-          <h1 className="mt-1 text-2xl font-semibold">Dealer ledger</h1>
+          <h1 className="mt-1 text-xl font-semibold sm:text-2xl">Dealer ledger</h1>
           <p className="mt-1 text-sm text-mill-800/80">
             GSTIN {dealer.gstin} · Books outstanding {formatInr(ledgerBalance)} against limit{' '}
             {formatInr(dealer.creditLimitInr)}
@@ -92,8 +92,8 @@ export function Ledger() {
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-3">
-        <label className="relative min-w-[240px] flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <label className="relative min-w-0 flex-1 sm:min-w-[240px]">
           <Search className="pointer-events-none absolute left-3 top-2.5 text-mill-800/40" size={16} />
           <input
             value={query}
@@ -105,7 +105,7 @@ export function Ledger() {
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value as typeof kind)}
-          className="rounded-lg border border-mill-200 bg-white px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-mill-200 bg-white px-3 py-2 text-sm sm:w-auto"
         >
           <option>All</option>
           <option>Debit</option>
@@ -113,7 +113,55 @@ export function Ledger() {
         </select>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-mill-200 bg-white shadow-panel">
+      <div className="space-y-3 lg:hidden">
+        {rows.map((row) => (
+          <article key={row.id} className="rounded-xl border border-mill-200 bg-white p-4 shadow-panel">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-mono text-sm font-semibold">{row.invoiceNo}</p>
+                <p className="text-xs text-mill-800/70">{formatDateIn(row.date)}</p>
+              </div>
+              <span
+                className={
+                  row.entryType === 'Debit'
+                    ? 'rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-800'
+                    : 'rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800'
+                }
+              >
+                {row.entryType}
+              </span>
+            </div>
+            <p className="mt-2 text-sm">{row.particulars}</p>
+            {row.utr !== '—' && (
+              <p className="mt-1 font-mono text-[11px] text-mill-800/60">UTR {row.utr}</p>
+            )}
+            <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <dt className="text-[11px] uppercase text-mill-800/60">Settlement</dt>
+                <dd>{row.settlementType}</dd>
+              </div>
+              <div className="text-right">
+                <dt className="text-[11px] uppercase text-mill-800/60">Amount</dt>
+                <dd className="font-mono">{formatInr(row.amount)}</dd>
+              </div>
+              <div className="col-span-2 flex justify-between border-t border-mill-100 pt-2">
+                <dt>Running balance</dt>
+                <dd className="font-mono">{formatInr(row.runningBalance)}</dd>
+              </div>
+            </dl>
+            <button
+              type="button"
+              onClick={() => downloadTaxInvoicePdf(row, dealer.legalName, dealer.gstin)}
+              className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-md border border-mill-200 px-2 py-2 text-xs font-medium hover:bg-mill-50"
+            >
+              <Download size={13} />
+              Download Tax Invoice (PDF)
+            </button>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-xl border border-mill-200 bg-white shadow-panel lg:block">
         <table className="w-full min-w-[860px] text-left text-sm">
           <thead className="bg-mill-50 text-[11px] uppercase tracking-wide text-mill-800/70">
             <tr>

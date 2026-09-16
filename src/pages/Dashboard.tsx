@@ -19,9 +19,12 @@ export function Dashboard() {
     <div className="space-y-6">
       <header>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-kiln-500">West region · FY 2026-27</p>
-        <h1 className="mt-1 text-2xl font-semibold text-mill-950">Aggregated mill status</h1>
+        <h1 className="mt-1 text-xl font-semibold text-mill-950 sm:text-2xl">Aggregated mill status</h1>
         <p className="mt-1 text-sm text-mill-800/80">
-          {dealer.legalName} · GSTIN {dealer.gstin} · RM {dealer.relationshipManager}
+          {dealer.legalName}
+          <span className="mt-1 block sm:mt-0 sm:inline">
+            <span className="hidden sm:inline"> · </span>GSTIN {dealer.gstin} · RM {dealer.relationshipManager}
+          </span>
         </p>
       </header>
 
@@ -56,7 +59,7 @@ export function Dashboard() {
 
       <section className="grid gap-4 lg:grid-cols-3">
         <article className="rounded-xl border border-mill-200 bg-white p-5 shadow-panel lg:col-span-2">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Live manufacturing pipeline</h2>
               <p className="text-sm text-mill-800/70">

@@ -32,7 +32,7 @@ export function KPIWidget({ label, value, hint, icon, tone = 'default' }: KPIWid
           {icon}
         </span>
       </div>
-      <p className="mt-3 font-mono text-2xl font-semibold tracking-tight text-mill-950">{value}</p>
+      <p className="mt-3 break-all font-mono text-xl font-semibold tracking-tight text-mill-950 sm:text-2xl">{value}</p>
       <p className="mt-1 text-sm text-mill-800/70">{hint}</p>
     </article>
   );

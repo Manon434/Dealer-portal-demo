@@ -9,7 +9,7 @@ interface TrackerStepperProps {
 
 export function TrackerStepper({ currentStep, paused = false }: TrackerStepperProps) {
   return (
-    <ol className="grid gap-3 md:grid-cols-5">
+    <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5 lg:gap-3">
       {TRACKER_STAGES.map((stage, index) => {
         const done = index < currentStep;
         const active = index === currentStep;

@@ -35,7 +35,7 @@ export function Checkout() {
     <div className="space-y-6">
       <header>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-kiln-500">Indent desk</p>
-        <h1 className="mt-1 text-2xl font-semibold">Cart, GST and credit validation</h1>
+        <h1 className="mt-1 text-xl font-semibold sm:text-2xl">Cart, GST and credit validation</h1>
         <p className="mt-1 text-sm text-mill-800/80">
           GST @ {(GST_RATE * 100).toFixed(0)}% is computed on discounted material subtotals. Credit Guardrail
           compares GST-inclusive total + active ledger balance against {formatInr(dealer.creditLimitInr)}.
@@ -62,7 +62,7 @@ export function Checkout() {
       )}
 
       {cart.length === 0 ? (
-        <article className="rounded-xl border border-dashed border-mill-300 bg-white p-10 text-center">
+        <article className="rounded-xl border border-dashed border-mill-300 bg-white p-6 text-center sm:p-10">
           <Ban className="mx-auto text-mill-800/40" />
           <p className="mt-3 font-medium">No polymer lines in the cart</p>
           <button

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   BookOpen,
   ClipboardList,
@@ -6,90 +7,169 @@ import {
   LogOut,
   PackageSearch,
   ShoppingCart,
+  X,
 } from 'lucide-react';
 import { usePortal } from '../context/PortalContext';
 import type { PortalView } from '../types/portal';
+import { formatInr } from '../types/portal';
 import clsx from 'clsx';
 
-const NAV: { id: PortalView; label: string; hint: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'dashboard', label: 'Command Centre', hint: 'Exposure & mill load', icon: LayoutDashboard },
-  { id: 'catalog', label: 'Polymer Catalogue', hint: 'Live mill allocation', icon: PackageSearch },
-  { id: 'checkout', label: 'Indent Checkout', hint: 'GST & credit check', icon: ShoppingCart },
-  { id: 'orders', label: 'My Orders', hint: 'Live job tracker', icon: ClipboardList },
-  { id: 'ledger', label: 'Dealer Ledger', hint: 'Tax invoices & UTR', icon: BookOpen },
+export const NAV: { id: PortalView; label: string; short: string; hint: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'dashboard', label: 'Command Centre', short: 'Centre', hint: 'Exposure & mill load', icon: LayoutDashboard },
+  { id: 'catalog', label: 'Polymer Catalogue', short: 'Catalogue', hint: 'Live mill allocation', icon: PackageSearch },
+  { id: 'checkout', label: 'Indent Checkout', short: 'Indent', hint: 'GST & credit check', icon: ShoppingCart },
+  { id: 'orders', label: 'My Orders', short: 'Orders', hint: 'Live job tracker', icon: ClipboardList },
+  { id: 'ledger', label: 'Dealer Ledger', short: 'Ledger', hint: 'Tax invoices & UTR', icon: BookOpen },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { view, setView, logout, dealer, cart, availableCredit } = usePortal();
   const cartMt = cart.reduce((sum, line) => sum + line.quantityMt, 0);
 
-  return (
-    <aside className="flex h-full w-[272px] shrink-0 flex-col border-r border-white/10 bg-mill-950 text-mill-50">
-      <div className="border-b border-white/10 px-5 py-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-kiln-500 text-mill-950">
-            <Factory size={22} strokeWidth={2.25} />
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-kiln-400">
-              Bharat Plastics
-            </p>
-            <p className="text-sm font-semibold leading-tight">Dealer Portal</p>
-          </div>
-        </div>
-        <p className="mt-4 rounded-md bg-white/5 px-3 py-2 text-[11px] leading-relaxed text-mill-200">
-          {dealer.tradeName}
-          <span className="mt-1 block font-mono text-[10px] text-kiln-400">{dealer.partnerCode}</span>
-        </p>
-      </div>
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+  const go = (id: PortalView) => {
+    setView(id);
+    onClose();
+  };
+
+  return (
+    <>
+      <div
+        className={clsx(
+          'fixed inset-0 z-40 bg-mill-950/50 transition-opacity md:hidden',
+          mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}
+        onClick={onClose}
+        aria-hidden={!mobileOpen}
+      />
+
+      <aside
+        className={clsx(
+          'fixed inset-y-0 left-0 z-50 flex w-[min(18.5rem,88vw)] flex-col border-r border-white/10 bg-mill-950 text-mill-50 transition-transform md:static md:z-0 md:w-[13.5rem] md:translate-x-0 lg:w-[17rem]',
+          mobileOpen ? 'translate-x-0' : 'pointer-events-none -translate-x-full md:pointer-events-auto md:translate-x-0',
+        )}
+      >
+        <div className="border-b border-white/10 px-4 py-5 lg:px-5 lg:py-6">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-kiln-500 text-mill-950">
+                <Factory size={22} strokeWidth={2.25} />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-kiln-400">
+                  Bharat Plastics
+                </p>
+                <p className="text-sm font-semibold leading-tight">West indent desk</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="rounded-md p-2 text-mill-100 hover:bg-white/10 md:hidden"
+              onClick={onClose}
+              aria-label="Close navigation"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <p className="mt-4 rounded-md bg-white/5 px-3 py-2 text-[11px] leading-relaxed text-mill-200">
+            {dealer.tradeName}
+            <span className="mt-1 block font-mono text-[10px] text-kiln-400">{dealer.partnerCode}</span>
+          </p>
+        </div>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+          {NAV.map((item) => {
+            const Icon = item.icon;
+            const active = view === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => go(item.id)}
+                aria-current={active ? 'page' : undefined}
+                className={clsx(
+                  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition',
+                  active ? 'bg-white/10 text-white shadow-inner' : 'text-mill-200 hover:bg-white/5 hover:text-white',
+                )}
+              >
+                <Icon size={18} className="shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{item.label}</span>
+                  <span className="hidden truncate text-[11px] text-mill-200/70 lg:block">{item.hint}</span>
+                </span>
+                {item.id === 'checkout' && cart.length > 0 && (
+                  <span className="rounded-full bg-kiln-500 px-2 py-0.5 font-mono text-[10px] font-semibold text-mill-950">
+                    {cartMt.toFixed(1)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-white/10 px-4 py-4">
+          <p className="text-[11px] uppercase tracking-wider text-mill-200/80">Credit headroom</p>
+          <p className="mt-1 font-mono text-sm text-white">{formatInr(Math.max(0, availableCredit))}</p>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              logout();
+            }}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-white/15 px-3 py-2 text-sm text-mill-100 hover:bg-white/10"
+          >
+            <LogOut size={15} />
+            Sign out
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+export function MobileTabBar() {
+  const { view, setView, cart } = usePortal();
+  const cartMt = cart.reduce((sum, line) => sum + line.quantityMt, 0);
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-mill-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <ul className="grid grid-cols-5">
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = view === item.id;
           return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setView(item.id)}
-              className={clsx(
-                'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition',
-                active ? 'bg-white/10 text-white shadow-inner' : 'text-mill-200 hover:bg-white/5 hover:text-white',
-              )}
-            >
-              <Icon size={18} />
-              <span className="flex-1">
-                <span className="block text-sm font-medium">{item.label}</span>
-                <span className="block text-[11px] text-mill-200/70">{item.hint}</span>
-              </span>
-              {item.id === 'checkout' && cart.length > 0 && (
-                <span className="rounded-full bg-kiln-500 px-2 py-0.5 font-mono text-[10px] font-semibold text-mill-950">
-                  {cartMt.toFixed(1)}
-                </span>
-              )}
-            </button>
+            <li key={item.id}>
+              <button
+                type="button"
+                onClick={() => setView(item.id)}
+                className={clsx(
+                  'relative flex w-full flex-col items-center gap-0.5 px-1 py-2 text-[10px] font-medium',
+                  active ? 'text-mill-950' : 'text-mill-800/60',
+                )}
+              >
+                <Icon size={18} />
+                {item.short}
+                {item.id === 'checkout' && cart.length > 0 && (
+                  <span className="absolute right-2 top-1 rounded-full bg-kiln-500 px-1 font-mono text-[9px] text-mill-950">
+                    {cartMt.toFixed(0)}
+                  </span>
+                )}
+              </button>
+            </li>
           );
         })}
-      </nav>
-
-      <div className="border-t border-white/10 px-4 py-4">
-        <p className="text-[11px] uppercase tracking-wider text-mill-200/80">Headroom</p>
-        <p className="mt-1 font-mono text-sm text-white">
-          {new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 0,
-          }).format(Math.max(0, availableCredit))}
-        </p>
-        <button
-          type="button"
-          onClick={logout}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-white/15 px-3 py-2 text-sm text-mill-100 hover:bg-white/10"
-        >
-          <LogOut size={15} />
-          Sign out
-        </button>
-      </div>
-    </aside>
+      </ul>
+    </nav>
   );
 }
