@@ -1,3 +1,5 @@
+export type UserRole = 'dealer' | 'manufacturer';
+
 export type PortalView = 'dashboard' | 'catalog' | 'checkout' | 'orders' | 'ledger';
 
 export type MasterbatchColor =
@@ -87,6 +89,7 @@ export interface Order {
   poNumber: string;
   placedAt: string;
   status: OrderStatus;
+  pipelineStage: PipelineStage;
   trackerStep: number;
   lines: OrderLine[];
   materialSubtotal: number;
@@ -97,6 +100,14 @@ export interface Order {
   creditReview: boolean;
   plant: string;
   shipTo: string;
+  dealerId: string;
+  dealerName: string;
+  dealerCode: string;
+  dealerGstin: string;
+  creditLimitInr: number;
+  ledgerBalanceAtPlacement: number;
+  exposureAtPlacement: number;
+  delivered?: boolean;
 }
 
 export interface LedgerRow {
@@ -112,9 +123,9 @@ export interface LedgerRow {
 }
 
 export const GST_RATE = 0.18;
-export const VOLUME_DISCOUNT_THRESHOLD_MT = 5;
+export const VOLUME_DISCOUNT_THRESHOLD_MT = 100;
 export const VOLUME_DISCOUNT_RATE = 0.1;
-export const DEFAULT_CREDIT_LIMIT_INR = 1_500_000;
+export const DEFAULT_CREDIT_LIMIT_INR = 1_000_000_000;
 
 export const TRACKER_STAGES = [
   'Raw Material Mixing',
@@ -123,6 +134,8 @@ export const TRACKER_STAGES = [
   'Waiting for Transport',
   'Out for Delivery',
 ] as const;
+
+export type PipelineStage = (typeof TRACKER_STAGES)[number];
 
 export const MASTERBATCH_OPTIONS: MasterbatchColor[] = [
   'Natural',
@@ -143,8 +156,8 @@ export const CATALOG_PRODUCTS: PolymerProduct[] = [
     description: 'Blow-moulding HDPE with high ESCR for jerry cans and lube containers.',
     applications: 'Jerrycans, IBCs, industrial drums',
     pricePerMt: 112500,
-    availableStockMt: 286,
-    moqMt: 1,
+    availableStockMt: 28600,
+    moqMt: 25,
     mfi: '0.35 g/10 min',
     density: '0.954 g/cm³',
     plant: 'Dahej Compounding Plant',
@@ -157,8 +170,8 @@ export const CATALOG_PRODUCTS: PolymerProduct[] = [
     description: 'Injection-moulding polypropylene copolymer for crates and furniture.',
     applications: 'Crates, household, appliance housings',
     pricePerMt: 98750,
-    availableStockMt: 194,
-    moqMt: 1,
+    availableStockMt: 19400,
+    moqMt: 25,
     mfi: '12 g/10 min',
     density: '0.905 g/cm³',
     plant: 'Nagothane Polymer Unit',
@@ -171,8 +184,8 @@ export const CATALOG_PRODUCTS: PolymerProduct[] = [
     description: 'Film-grade LLDPE for liners, stretch wrap and agricultural mulch.',
     applications: 'Liners, stretch film, agri mulch',
     pricePerMt: 105000,
-    availableStockMt: 241,
-    moqMt: 1,
+    availableStockMt: 24100,
+    moqMt: 25,
     mfi: '1.0 g/10 min',
     density: '0.918 g/cm³',
     plant: 'Jamnagar Film Resin Line',
@@ -185,8 +198,8 @@ export const CATALOG_PRODUCTS: PolymerProduct[] = [
     description: 'K-67 suspension PVC for pipes, fittings and wire insulation.',
     applications: 'uPVC pipes, conduits, profiles',
     pricePerMt: 87400,
-    availableStockMt: 318,
-    moqMt: 1,
+    availableStockMt: 31800,
+    moqMt: 25,
     mfi: 'K-value 67',
     density: '1.40 g/cm³',
     plant: 'Kota Vinyl Complex',
@@ -275,24 +288,47 @@ export function formatDateIn(iso: string): string {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(new Date(iso));
 }
 
-export function trackerIndexForStatus(status: OrderStatus): number {
-  switch (status) {
-    case 'Credit Review Pending':
-      return 0;
-    case 'In Production':
-      return 1;
-    case 'Quality Hold':
-      return 2;
-    case 'Ready to Dispatch':
-      return 3;
-    case 'In Transit':
-      return 4;
-    case 'Delivered':
-      return 5;
+export function formatDateOnly(iso: string): string {
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(iso));
+}
+
+export function orderTonnage(order: Order): number {
+  return order.lines.reduce((sum, line) => sum + line.quantityMt, 0);
+}
+
+export function orderMaterials(order: Order): string {
+  return [...new Set(order.lines.map((line) => line.polymer))].join(' + ');
+}
+
+export function statusFromPipeline(stage: PipelineStage, creditReview: boolean, delivered = false): OrderStatus {
+  if (creditReview) return 'Credit Review Pending';
+  if (delivered) return 'Delivered';
+  switch (stage) {
+    case 'Raw Material Mixing':
+    case 'Extrusion & Molding':
+      return 'In Production';
+    case 'Quality Assurance Check':
+      return 'Quality Hold';
+    case 'Waiting for Transport':
+      return 'Ready to Dispatch';
+    case 'Out for Delivery':
+      return 'In Transit';
     default:
-      return 0;
+      return 'In Production';
   }
+}
+
+export function trackerIndexForPipeline(stage: PipelineStage, creditReview: boolean, delivered = false): number {
+  if (delivered) return TRACKER_STAGES.length;
+  if (creditReview) return 0;
+  return TRACKER_STAGES.indexOf(stage);
 }

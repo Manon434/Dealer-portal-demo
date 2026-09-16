@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import { usePortal } from '../context/PortalContext';
-import { formatDateIn, formatInr, type LedgerRow } from '../types/portal';
+import { formatDateOnly, formatInr, type LedgerRow } from '../types/portal';
 
 function pdfEscape(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
@@ -11,7 +11,7 @@ function downloadTaxInvoicePdf(row: LedgerRow, dealerName: string, gstin: string
   const lines = [
     'BHARAT PLASTICS LTD — TAX INVOICE',
     `Invoice: ${row.invoiceNo}`,
-    `Date: ${formatDateIn(row.date)}`,
+    `Date: ${formatDateOnly(row.date)}`,
     `Dealer: ${dealerName}`,
     `GSTIN: ${gstin}`,
     `Particulars: ${row.particulars}`,
@@ -119,7 +119,7 @@ export function Ledger() {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-mono text-sm font-semibold">{row.invoiceNo}</p>
-                <p className="text-xs text-mill-800/70">{formatDateIn(row.date)}</p>
+                <p className="text-xs text-mill-800/70">{formatDateOnly(row.date)}</p>
               </div>
               <span
                 className={
@@ -179,7 +179,7 @@ export function Ledger() {
             {rows.map((row) => (
               <tr key={row.id} className="border-t border-mill-100">
                 <td className="px-4 py-3 font-mono font-medium">{row.invoiceNo}</td>
-                <td className="px-4 py-3">{formatDateIn(row.date)}</td>
+                <td className="px-4 py-3">{formatDateOnly(row.date)}</td>
                 <td className="px-4 py-3">
                   {row.particulars}
                   {row.utr !== '—' && (

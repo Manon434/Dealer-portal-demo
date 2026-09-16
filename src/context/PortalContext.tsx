@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -10,9 +11,11 @@ import {
   CATALOG_PRODUCTS,
   DEMO_DEALER,
   GST_RATE,
+  TRACKER_STAGES,
   priceCartLine,
+  statusFromPipeline,
   summarizeCart,
-  trackerIndexForStatus,
+  trackerIndexForPipeline,
   volumeUnitPrice,
   type CartLine,
   type Dealer,
@@ -20,14 +23,19 @@ import {
   type MasterbatchColor,
   type Order,
   type OrderLine,
+  type PipelineStage,
   type PolymerProduct,
   type PortalView,
+  type UserRole,
 } from '../types/portal';
 
-const AUTH_EMAIL = 'dealer@bharatplastics.in';
+const DEALER_EMAIL = 'dealer@bharatplastics.in';
+const MILL_EMAIL = 'manufacturer@plasticcorp.in';
 const AUTH_PASSWORD = 'password123';
+const STORAGE_KEY = 'bharat-plastics-portal-v4';
 
 interface PortalContextValue {
+  role: UserRole | null;
   dealer: Dealer;
   products: PolymerProduct[];
   isAuthenticated: boolean;
@@ -46,9 +54,23 @@ interface PortalContextValue {
   ledgerBalance: number;
   availableCredit: number;
   placeOrder: (mode: 'process' | 'credit-review') => { ok: boolean; message: string; orderId?: string };
+  advancePipeline: (orderId: string, stage: PipelineStage, markDelivered?: boolean) => void;
+  approveCredit: (orderId: string) => { ok: boolean; message: string };
 }
 
 const PortalContext = createContext<PortalContextValue | null>(null);
+
+function dealerStamp(ledgerBalance: number, grandTotal: number) {
+  return {
+    dealerId: DEMO_DEALER.id,
+    dealerName: DEMO_DEALER.legalName,
+    dealerCode: DEMO_DEALER.partnerCode,
+    dealerGstin: DEMO_DEALER.gstin,
+    creditLimitInr: DEMO_DEALER.creditLimitInr,
+    ledgerBalanceAtPlacement: ledgerBalance,
+    exposureAtPlacement: ledgerBalance + grandTotal,
+  };
+}
 
 function seedOrders(): Order[] {
   const mkLine = (
@@ -91,71 +113,86 @@ function seedOrders(): Order[] {
     id: string,
     poNumber: string,
     placedAt: string,
-    status: Order['status'],
+    pipelineStage: PipelineStage,
     lines: OrderLine[],
     plant: string,
-    creditReview = false,
+    options?: { creditReview?: boolean; delivered?: boolean },
   ): Order => {
+    const creditReview = options?.creditReview ?? false;
+    const delivered = options?.delivered ?? false;
     const materialSubtotal = lines.reduce((sum, line) => sum + line.quantityMt * line.listPricePerMt, 0);
     const taxableValue = lines.reduce((sum, line) => sum + line.lineSubtotal, 0);
     const gstAmount = lines.reduce((sum, line) => sum + line.gstAmount, 0);
+    const grandTotal = taxableValue + gstAmount;
     return {
       id,
       poNumber,
       placedAt,
-      status,
-      trackerStep: trackerIndexForStatus(status),
+      status: statusFromPipeline(pipelineStage, creditReview, delivered),
+      pipelineStage,
+      trackerStep: trackerIndexForPipeline(pipelineStage, creditReview, delivered),
       lines,
       materialSubtotal,
       volumeDiscount: materialSubtotal - taxableValue,
       taxableValue,
       gstAmount,
-      grandTotal: taxableValue + gstAmount,
+      grandTotal,
       creditReview,
       plant,
       shipTo: 'WGPD Warehouse, Chakan MIDC, Pune 410501',
+      ...dealerStamp(245000000, grandTotal),
     };
   };
 
   return [
     wrap(
+      'ORD-2026-1188',
+      'PO-WGPD-4490',
+      '2026-09-16T11:05:00+05:30',
+      'Raw Material Mixing',
+      [mkLine('pol-hdpe-h10', 'White', 1200)],
+      'Dahej Compounding Plant',
+      { creditReview: true },
+    ),
+    wrap(
       'ORD-2026-1184',
       'PO-WGPD-4418',
       '2026-09-12T09:40:00+05:30',
-      'In Transit',
-      [mkLine('pol-hdpe-h10', 'White', 8), mkLine('pol-lldpe-l30', 'Natural', 4)],
+      'Out for Delivery',
+      [mkLine('pol-hdpe-h10', 'White', 2500), mkLine('pol-lldpe-l30', 'Natural', 1500)],
       'Dahej Compounding Plant',
     ),
     wrap(
       'ORD-2026-1171',
       'PO-WGPD-4390',
       '2026-09-08T16:05:00+05:30',
-      'Quality Hold',
-      [mkLine('pol-pp-p20', 'Ultramarine Blue', 6.5)],
+      'Quality Assurance Check',
+      [mkLine('pol-pp-p20', 'Ultramarine Blue', 1800)],
       'Nagothane Polymer Unit',
     ),
     wrap(
       'ORD-2026-1156',
       'PO-WGPD-4362',
       '2026-08-29T11:20:00+05:30',
-      'Delivered',
-      [mkLine('pol-pvc-v40', 'Olive Green', 12)],
+      'Out for Delivery',
+      [mkLine('pol-pvc-v40', 'Olive Green', 3200)],
       'Kota Vinyl Complex',
+      { delivered: true },
     ),
     wrap(
       'ORD-2026-1142',
       'PO-WGPD-4328',
       '2026-08-21T14:10:00+05:30',
-      'Ready to Dispatch',
-      [mkLine('pol-hdpe-h10', 'Black', 3), mkLine('pol-pp-p20', 'Natural', 2)],
+      'Waiting for Transport',
+      [mkLine('pol-hdpe-h10', 'Black', 850), mkLine('pol-pp-p20', 'Natural', 650)],
       'Dahej Compounding Plant',
     ),
     wrap(
       'ORD-2026-1120',
       'PO-WGPD-4281',
       '2026-08-11T10:00:00+05:30',
-      'In Production',
-      [mkLine('pol-lldpe-l30', 'UV-Stabilized Grey', 7.25)],
+      'Extrusion & Molding',
+      [mkLine('pol-lldpe-l30', 'UV-Stabilized Grey', 2100)],
       'Jamnagar Film Resin Line',
     ),
   ];
@@ -167,9 +204,9 @@ function seedLedger(): LedgerRow[] {
       id: 'led-01',
       invoiceNo: 'BP-2026-38',
       date: '2026-08-04',
-      particulars: 'Tax invoice — PVC V40 10 MT (Kota)',
+      particulars: 'Tax invoice — PVC V40 180 MT (Kota)',
       entryType: 'Debit',
-      amount: 580000,
+      amount: 15732000,
       settlementType: 'Adjustment',
       utr: '—',
     },
@@ -179,7 +216,7 @@ function seedLedger(): LedgerRow[] {
       date: '2026-08-12',
       particulars: 'NEFT collection — HDFC Pune CMS',
       entryType: 'Credit',
-      amount: 650000,
+      amount: 12500000,
       settlementType: 'NEFT',
       utr: 'HDFC2608124418291',
     },
@@ -187,9 +224,9 @@ function seedLedger(): LedgerRow[] {
       id: 'led-03',
       invoiceNo: 'BP-2026-41',
       date: '2026-08-22',
-      particulars: 'Tax invoice — HDPE H10 3 MT + PP P20 2 MT',
+      particulars: 'Tax invoice — HDPE H10 45 MT + PP P20 35 MT',
       entryType: 'Debit',
-      amount: 631350,
+      amount: 9461250,
       settlementType: 'Adjustment',
       utr: '—',
     },
@@ -199,7 +236,7 @@ function seedLedger(): LedgerRow[] {
       date: '2026-08-28',
       particulars: 'RTGS collection — ICICI Chakan',
       entryType: 'Credit',
-      amount: 500000,
+      amount: 8000000,
       settlementType: 'RTGS',
       utr: 'ICIC2608289912044',
     },
@@ -207,9 +244,9 @@ function seedLedger(): LedgerRow[] {
       id: 'led-05',
       invoiceNo: 'BP-2026-43',
       date: '2026-09-02',
-      particulars: 'Tax invoice — LLDPE L30 7.25 MT (Jamnagar)',
+      particulars: 'Tax invoice — LLDPE L30 110 MT (Jamnagar)',
       entryType: 'Debit',
-      amount: 420000,
+      amount: 11550000,
       settlementType: 'Adjustment',
       utr: '—',
     },
@@ -217,9 +254,9 @@ function seedLedger(): LedgerRow[] {
       id: 'led-06',
       invoiceNo: 'BP-2026-44',
       date: '2026-09-09',
-      particulars: 'Tax invoice — PP P20 6.5 MT blue masterbatch',
+      particulars: 'Tax invoice — PP P20 95 MT blue masterbatch',
       entryType: 'Debit',
-      amount: 679163,
+      amount: 9381250,
       settlementType: 'Adjustment',
       utr: '—',
     },
@@ -229,7 +266,7 @@ function seedLedger(): LedgerRow[] {
       date: '2026-09-14',
       particulars: 'IMPS part settlement — Axis Bank Camp',
       entryType: 'Credit',
-      amount: 320000,
+      amount: 5000000,
       settlementType: 'IMPS',
       utr: 'UTIB2609143301187',
     },
@@ -250,15 +287,58 @@ function withRunningBalance(rows: LedgerRow[]): LedgerRow[] {
   });
 }
 
+interface PersistedState {
+  orders: Order[];
+  ledger: LedgerRow[];
+  orderSeq: number;
+  invoiceSeq: number;
+}
+
+function loadPersisted(): PersistedState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedState;
+    if (!Array.isArray(parsed.orders) || !Array.isArray(parsed.ledger)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function postInvoice(
+  order: Order,
+  invoiceNo: string,
+): LedgerRow {
+  return {
+    id: `led-${invoiceNo}`,
+    invoiceNo,
+    date: new Date().toISOString().slice(0, 10),
+    particulars: `Tax invoice — ${order.lines.map((l) => `${l.polymer} ${l.grade} ${l.quantityMt} MT`).join(', ')}`,
+    entryType: 'Debit',
+    amount: Math.round(order.grandTotal),
+    settlementType: 'Adjustment',
+    utr: '—',
+    runningBalance: 0,
+  };
+}
+
 export function PortalProvider({ children }: { children: ReactNode }) {
+  const persisted = useMemo(() => (typeof window === 'undefined' ? null : loadPersisted()), []);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [view, setView] = useState<PortalView>('dashboard');
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [orders, setOrders] = useState<Order[]>(seedOrders);
-  const [ledger, setLedger] = useState<LedgerRow[]>(seedLedger);
-  const [orderSeq, setOrderSeq] = useState(1185);
-  const [invoiceSeq, setInvoiceSeq] = useState(46);
+  const [orders, setOrders] = useState<Order[]>(() => persisted?.orders ?? seedOrders());
+  const [ledger, setLedger] = useState<LedgerRow[]>(() => persisted?.ledger ?? seedLedger());
+  const [orderSeq, setOrderSeq] = useState(() => persisted?.orderSeq ?? 1189);
+  const [invoiceSeq, setInvoiceSeq] = useState(() => persisted?.invoiceSeq ?? 46);
+
+  useEffect(() => {
+    const payload: PersistedState = { orders, ledger, orderSeq, invoiceSeq };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }, [invoiceSeq, ledger, orderSeq, orders]);
 
   const ledgerBalance = useMemo(() => {
     return ledger.reduce((sum, row) => sum + (row.entryType === 'Debit' ? row.amount : -row.amount), 0);
@@ -267,20 +347,32 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const availableCredit = DEMO_DEALER.creditLimitInr - ledgerBalance;
 
   const login = useCallback((email: string, password: string) => {
-    const ok =
-      email.trim().toLowerCase() === AUTH_EMAIL && password === AUTH_PASSWORD;
-    if (!ok) {
-      setAuthError('Access denied. Use the dealer credentials issued by Bharat Plastics Credit Control.');
+    const normalised = email.trim().toLowerCase();
+    if (password !== AUTH_PASSWORD) {
+      setAuthError('Access denied. Password does not match the issued mailbox.');
       return false;
     }
-    setAuthError(null);
-    setIsAuthenticated(true);
-    setView('dashboard');
-    return true;
+    if (normalised === DEALER_EMAIL) {
+      setRole('dealer');
+      setAuthError(null);
+      setIsAuthenticated(true);
+      setView('dashboard');
+      return true;
+    }
+    if (normalised === MILL_EMAIL) {
+      setRole('manufacturer');
+      setAuthError(null);
+      setIsAuthenticated(true);
+      setView('dashboard');
+      return true;
+    }
+    setAuthError('Unknown mailbox. Use the dealer indent desk or mill operations credentials.');
+    return false;
   }, []);
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);
+    setRole(null);
     setAuthError(null);
     setView('dashboard');
   }, []);
@@ -382,13 +474,14 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       const id = `ORD-2026-${orderSeq}`;
       const invoiceNo = `BP-2026-${invoiceSeq}`;
       const creditReview = mode === 'credit-review' || overLimit;
-      const status = creditReview ? 'Credit Review Pending' : 'In Production';
+      const pipelineStage: PipelineStage = 'Raw Material Mixing';
       const order: Order = {
         id,
         poNumber: `PO-WGPD-${4300 + orderSeq}`,
         placedAt: new Date().toISOString(),
-        status,
-        trackerStep: trackerIndexForStatus(status),
+        status: statusFromPipeline(pipelineStage, creditReview),
+        pipelineStage,
+        trackerStep: trackerIndexForPipeline(pipelineStage, creditReview),
         lines,
         materialSubtotal: summary.listValue,
         volumeDiscount: summary.volumeDiscount,
@@ -398,24 +491,14 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         creditReview,
         plant: CATALOG_PRODUCTS.find((p) => p.id === cart[0].productId)?.plant ?? 'Dahej Compounding Plant',
         shipTo: 'WGPD Warehouse, Chakan MIDC, Pune 410501',
+        ...dealerStamp(ledgerBalance, summary.grandTotal),
       };
 
       setOrders((prev) => [order, ...prev]);
       setOrderSeq((n) => n + 1);
 
       if (!creditReview) {
-        const debit: LedgerRow = {
-          id: `led-${invoiceNo}`,
-          invoiceNo,
-          date: new Date().toISOString().slice(0, 10),
-          particulars: `Tax invoice — ${lines.map((l) => `${l.polymer} ${l.grade} ${l.quantityMt} MT`).join(', ')}`,
-          entryType: 'Debit',
-          amount: Math.round(summary.grandTotal),
-          settlementType: 'Adjustment',
-          utr: '—',
-          runningBalance: 0,
-        };
-        setLedger((prev) => withRunningBalance([...prev, debit]));
+        setLedger((prev) => withRunningBalance([...prev, postInvoice(order, invoiceNo)]));
         setInvoiceSeq((n) => n + 1);
       }
 
@@ -426,14 +509,60 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         orderId: id,
         message: creditReview
           ? `Order ${id} flagged as Credit Review Pending. Mill scheduling is on hold until Credit Control releases the limit.`
-          : `Order ${id} accepted. GST @ ${(GST_RATE * 100).toFixed(0)}% posted to ledger ${invoiceNo}.`,
+          : `Order ${id} accepted. GST @ ${(GST_RATE * 100).toFixed(0)}% posted to ledger ${invoiceNo}. Mill queue updated.`,
       };
     },
     [cart, invoiceSeq, ledgerBalance, orderSeq],
   );
 
+  const advancePipeline = useCallback((orderId: string, stage: PipelineStage, markDelivered = false) => {
+    if (!TRACKER_STAGES.includes(stage)) return;
+    setOrders((prev) =>
+      prev.map((order) => {
+        if (order.id !== orderId) return order;
+        if (order.creditReview) return order;
+        const isDelivered = markDelivered;
+        return {
+          ...order,
+          pipelineStage: stage,
+          trackerStep: trackerIndexForPipeline(stage, false, isDelivered),
+          status: statusFromPipeline(stage, false, isDelivered),
+          delivered: isDelivered,
+        };
+      }),
+    );
+  }, []);
+
+  const approveCredit = useCallback(
+    (orderId: string) => {
+      const target = orders.find((order) => order.id === orderId);
+      if (!target) return { ok: false, message: 'Order not found in the mill queue.' };
+      if (!target.creditReview) return { ok: false, message: `${orderId} is already released to the mixing floor.` };
+
+      const invoiceNo = `BP-2026-${invoiceSeq}`;
+      const stage: PipelineStage = 'Raw Material Mixing';
+      const released: Order = {
+        ...target,
+        creditReview: false,
+        pipelineStage: stage,
+        trackerStep: trackerIndexForPipeline(stage, false),
+        status: statusFromPipeline(stage, false),
+      };
+
+      setOrders((prev) => prev.map((order) => (order.id === orderId ? released : order)));
+      setLedger((prev) => withRunningBalance([...prev, postInvoice(released, invoiceNo)]));
+      setInvoiceSeq((n) => n + 1);
+      return {
+        ok: true,
+        message: `${orderId} approved. Credit released and job pushed to Raw Material Mixing.`,
+      };
+    },
+    [invoiceSeq, orders],
+  );
+
   const value = useMemo<PortalContextValue>(
     () => ({
+      role,
       dealer: DEMO_DEALER,
       products: CATALOG_PRODUCTS,
       isAuthenticated,
@@ -452,9 +581,13 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       ledgerBalance,
       availableCredit,
       placeOrder,
+      advancePipeline,
+      approveCredit,
     }),
     [
       addToCart,
+      advancePipeline,
+      approveCredit,
       authError,
       availableCredit,
       cart,
@@ -467,6 +600,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       orders,
       placeOrder,
       removeCartLine,
+      role,
       updateCartQty,
       view,
     ],

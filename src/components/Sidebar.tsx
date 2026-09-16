@@ -28,7 +28,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
-  const { view, setView, logout, dealer, cart, availableCredit } = usePortal();
+  const { role, view, setView, logout, dealer, cart, availableCredit, orders } = usePortal();
   const cartMt = cart.reduce((sum, line) => sum + line.quantityMt, 0);
 
   useEffect(() => {
@@ -42,6 +42,99 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
     setView(id);
     onClose();
   };
+
+  if (role === 'manufacturer') {
+    const pendingCreditCount = orders.filter((o) => o.creditReview).length;
+
+    return (
+      <>
+        <div
+          className={clsx(
+            'fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs transition-opacity md:hidden',
+            mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
+          )}
+          onClick={onClose}
+          aria-hidden={!mobileOpen}
+        />
+
+        <aside
+          className={clsx(
+            'fixed inset-y-0 left-0 z-50 flex w-[min(18.5rem,88vw)] flex-col border-r border-slate-800 bg-slate-900 text-slate-100 transition-transform md:static md:z-0 md:w-[14rem] md:translate-x-0 lg:w-[17rem] shadow-xl',
+            mobileOpen ? 'translate-x-0' : 'pointer-events-none -translate-x-full md:pointer-events-auto md:translate-x-0',
+          )}
+        >
+          <div className="border-b border-slate-800 px-4 py-5 lg:px-5 lg:py-6">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-md font-bold">
+                  <Factory size={22} strokeWidth={2.25} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-rose-400">
+                    PlasticCorp Mill
+                  </p>
+                  <p className="text-sm font-extrabold leading-tight text-white">Manufacturer Admin</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"
+                onClick={onClose}
+                aria-label="Close navigation"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/80 px-3.5 py-2.5 text-[11px] leading-relaxed text-slate-300">
+              <span className="font-extrabold text-rose-400">Dahej & Nagothane Complex</span>
+              <span className="mt-0.5 block font-mono text-[10px] text-slate-400 font-bold">EXECUTIVE CONTROL CONSOLE</span>
+            </div>
+          </div>
+
+          <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
+            <button
+              type="button"
+              onClick={() => go('dashboard')}
+              className={clsx(
+                'flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left transition font-semibold',
+                view === 'dashboard' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white',
+              )}
+            >
+              <LayoutDashboard size={18} className="shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold">Master Order Console</span>
+                <span className="hidden truncate text-[11px] text-slate-300 font-medium lg:block">Orders, Pipeline & Credit</span>
+              </span>
+              {pendingCreditCount > 0 && (
+                <span className="rounded-full bg-amber-500 px-2 py-0.5 font-mono text-[10px] font-extrabold text-slate-950 shadow-xs">
+                  {pendingCreditCount}
+                </span>
+              )}
+            </button>
+          </nav>
+
+          <div className="border-t border-slate-800 px-4 py-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-rose-400">System Mode</p>
+              <p className="mt-0.5 text-xs text-white font-bold">Enterprise Light Portal</p>
+              <p className="mt-1 font-mono text-[10px] text-emerald-400 font-bold">₹100 Cr Credit Realm</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                logout();
+              }}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm font-bold text-slate-200 hover:bg-rose-600 hover:text-white hover:border-rose-600 transition shadow-sm"
+            >
+              <LogOut size={15} />
+              Sign out
+            </button>
+          </div>
+        </aside>
+      </>
+    );
+  }
 
   return (
     <>
