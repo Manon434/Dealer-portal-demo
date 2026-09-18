@@ -125,7 +125,7 @@ export interface LedgerRow {
 export const GST_RATE = 0.18;
 export const VOLUME_DISCOUNT_THRESHOLD_MT = 100;
 export const VOLUME_DISCOUNT_RATE = 0.1;
-export const DEFAULT_CREDIT_LIMIT_INR = 1_000_000_000;
+export const DEFAULT_CREDIT_LIMIT_INR = 350_000_000; // ₹35 Crore sanctioned limit
 
 export const TRACKER_STAGES = [
   'Raw Material Mixing',

@@ -32,7 +32,7 @@ import {
 const DEALER_EMAIL = 'dealer@bharatplastics.in';
 const MILL_EMAIL = 'manufacturer@plasticcorp.in';
 const AUTH_PASSWORD = 'password123';
-const STORAGE_KEY = 'bharat-plastics-portal-v4';
+const STORAGE_KEY = 'bharat-plastics-portal-v5';
 
 interface PortalContextValue {
   role: UserRole | null;
@@ -140,11 +140,12 @@ function seedOrders(): Order[] {
       creditReview,
       plant,
       shipTo: 'WGPD Warehouse, Chakan MIDC, Pune 410501',
-      ...dealerStamp(245000000, grandTotal),
+      ...dealerStamp(280_000_000, grandTotal),
     };
   };
 
   return [
+    // ── Awaiting Credit Approval (5 orders) ──────────────────────────────────
     wrap(
       'ORD-2026-1188',
       'PO-WGPD-4490',
@@ -154,6 +155,44 @@ function seedOrders(): Order[] {
       'Dahej Compounding Plant',
       { creditReview: true },
     ),
+    wrap(
+      'ORD-2026-1192',
+      'PO-WGPD-4511',
+      '2026-09-17T08:30:00+05:30',
+      'Raw Material Mixing',
+      [mkLine('pol-pp-p20', 'Natural', 2800), mkLine('pol-hdpe-h10', 'Black', 1600)],
+      'Dahej Compounding Plant',
+      { creditReview: true },
+    ),
+    wrap(
+      'ORD-2026-1195',
+      'PO-WGPD-4538',
+      '2026-09-17T11:15:00+05:30',
+      'Raw Material Mixing',
+      [mkLine('pol-pvc-v40', 'Olive Green', 4200)],
+      'Kota Vinyl Complex',
+      { creditReview: true },
+    ),
+    wrap(
+      'ORD-2026-1198',
+      'PO-WGPD-4562',
+      '2026-09-17T14:40:00+05:30',
+      'Raw Material Mixing',
+      [mkLine('pol-lldpe-l30', 'UV-Stabilized Grey', 3500), mkLine('pol-pp-p20', 'Ultramarine Blue', 2200)],
+      'Jamnagar Film Resin Line',
+      { creditReview: true },
+    ),
+    wrap(
+      'ORD-2026-1201',
+      'PO-WGPD-4589',
+      '2026-09-18T09:00:00+05:30',
+      'Raw Material Mixing',
+      [mkLine('pol-hdpe-h10', 'White', 5000), mkLine('pol-lldpe-l30', 'Natural', 1800)],
+      'Nagothane Polymer Unit',
+      { creditReview: true },
+    ),
+
+    // ── Active Production Pipeline ────────────────────────────────────────────
     wrap(
       'ORD-2026-1184',
       'PO-WGPD-4418',
@@ -332,13 +371,34 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [orders, setOrders] = useState<Order[]>(() => persisted?.orders ?? seedOrders());
   const [ledger, setLedger] = useState<LedgerRow[]>(() => persisted?.ledger ?? seedLedger());
-  const [orderSeq, setOrderSeq] = useState(() => persisted?.orderSeq ?? 1189);
+  const [orderSeq, setOrderSeq] = useState(() => persisted?.orderSeq ?? 1202);
   const [invoiceSeq, setInvoiceSeq] = useState(() => persisted?.invoiceSeq ?? 46);
 
+  // Save to localStorage whenever state changes
   useEffect(() => {
     const payload: PersistedState = { orders, ledger, orderSeq, invoiceSeq };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [invoiceSeq, ledger, orderSeq, orders]);
+
+  // Cross-tab sync: when dealer places an order in Tab A,
+  // the manufacturer dashboard in Tab B picks it up instantly.
+  useEffect(() => {
+    const onStorageChange = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY || !e.newValue) return;
+      try {
+        const incoming = JSON.parse(e.newValue) as PersistedState;
+        if (!Array.isArray(incoming.orders) || !Array.isArray(incoming.ledger)) return;
+        setOrders(incoming.orders);
+        setLedger(incoming.ledger);
+        setOrderSeq(incoming.orderSeq);
+        setInvoiceSeq(incoming.invoiceSeq);
+      } catch {
+        // ignore malformed data
+      }
+    };
+    window.addEventListener('storage', onStorageChange);
+    return () => window.removeEventListener('storage', onStorageChange);
+  }, []);
 
   const ledgerBalance = useMemo(() => {
     return ledger.reduce((sum, row) => sum + (row.entryType === 'Debit' ? row.amount : -row.amount), 0);

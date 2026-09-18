@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
   AlertTriangle,
-  BarChart2,
   CheckCircle2,
   Clock,
   Factory,
@@ -12,7 +11,6 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
-  TrendingDown,
   TrendingUp,
   X,
   Zap,
@@ -28,176 +26,6 @@ import {
   type PipelineStage,
 } from '../types/portal';
 
-
-// ─── Monthly Sales Comparison Table ──────────────────────────────────────────
-function MonthlySalesComparison({ orders }: { orders: Order[] }) {
-  const now = new Date();
-  const thisMonth = now.getMonth();
-  const thisYear = now.getFullYear();
-  const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
-  const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
-
-  const MONTH_NAMES = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December',
-  ];
-
-  // Partition delivered/all orders into this-month and last-month
-  const thisMonthOrders = orders.filter((o) => {
-    const d = new Date(o.placedAt);
-    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-  });
-  const lastMonthOrders = orders.filter((o) => {
-    const d = new Date(o.placedAt);
-    return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
-  });
-
-  // Per-polymer breakdown
-  const polymers = ['HDPE', 'PP', 'LLDPE', 'PVC', 'ABS', 'PET'];
-
-  type PolymerRow = {
-    polymer: string;
-    lastOrders: number;
-    thisOrders: number;
-    lastValue: number;
-    thisValue: number;
-    lastTonnage: number;
-    thisTonnage: number;
-  };
-
-  const rows: PolymerRow[] = polymers.map((polymer) => {
-    const lOrders = lastMonthOrders.filter((o) =>
-      o.lines.some((l) => l.polymer === polymer)
-    );
-    const tOrders = thisMonthOrders.filter((o) =>
-      o.lines.some((l) => l.polymer === polymer)
-    );
-    const sumVal = (os: Order[]) =>
-      os.reduce((s, o) => s + o.lines
-        .filter((l) => l.polymer === polymer)
-        .reduce((ls, l) => ls + l.lineTotal, 0), 0);
-    const sumTon = (os: Order[]) =>
-      os.reduce((s, o) => s + o.lines
-        .filter((l) => l.polymer === polymer)
-        .reduce((ls, l) => ls + l.quantityMt, 0), 0);
-    return {
-      polymer,
-      lastOrders: lOrders.length,
-      thisOrders: tOrders.length,
-      lastValue: sumVal(lOrders),
-      thisValue: sumVal(tOrders),
-      lastTonnage: sumTon(lOrders),
-      thisTonnage: sumTon(tOrders),
-    };
-  });
-
-  // Grand totals
-  const grandLast = { orders: lastMonthOrders.length, value: lastMonthOrders.reduce((s,o) => s+o.grandTotal,0), tonnage: lastMonthOrders.reduce((s,o) => s+orderTonnage(o),0) };
-  const grandThis = { orders: thisMonthOrders.length, value: thisMonthOrders.reduce((s,o) => s+o.grandTotal,0), tonnage: thisMonthOrders.reduce((s,o) => s+orderTonnage(o),0) };
-
-  const delta = (last: number, curr: number) => {
-    if (last === 0 && curr === 0) return null;
-    if (last === 0) return Infinity;
-    return ((curr - last) / last) * 100;
-  };
-
-  const DeltaBadge = ({ last, curr }: { last: number; curr: number }) => {
-    const pct = delta(last, curr);
-    if (pct === null) return <span className="text-slate-400 text-[10px] font-bold">—</span>;
-    if (!isFinite(pct)) return <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700">New ▲</span>;
-    const up = pct >= 0;
-    return (
-      <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-extrabold ${
-        up ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
-      }`}>
-        {up ? <TrendingUp size={10}/> : <TrendingDown size={10}/>}
-        {Math.abs(pct).toFixed(1)}%
-      </span>
-    );
-  };
-
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50/70 px-4 sm:px-6 py-4 sm:py-5 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600 border border-indigo-100">
-              <BarChart2 size={18} />
-            </div>
-            <h2 className="text-base sm:text-lg font-extrabold text-slate-900">Monthly Sales Comparison</h2>
-          </div>
-          <p className="mt-1 text-xs text-slate-500 font-medium pl-9">
-            {MONTH_NAMES[lastMonth]} {lastMonthYear} vs {MONTH_NAMES[thisMonth]} {thisYear} · Polymer-wise breakdown
-          </p>
-        </div>
-        <div className="flex gap-3 self-start md:self-center">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-            <span className="h-3 w-3 rounded-sm bg-slate-300 inline-block"/>
-            {MONTH_NAMES[lastMonth]}
-          </span>
-          <span className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-700">
-            <span className="h-3 w-3 rounded-sm bg-indigo-500 inline-block"/>
-            {MONTH_NAMES[thisMonth]}
-          </span>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto w-full">
-        <table className="w-full text-left text-xs min-w-[700px]">
-          <thead className="border-b border-slate-200 bg-slate-100/70 font-extrabold uppercase tracking-wider text-slate-600">
-            <tr>
-              <th className="px-4 py-3.5">Polymer Grade</th>
-              <th className="px-4 py-3.5 text-center text-slate-500">{MONTH_NAMES[lastMonth].slice(0,3)} Orders</th>
-              <th className="px-4 py-3.5 text-center text-indigo-700">{MONTH_NAMES[thisMonth].slice(0,3)} Orders</th>
-              <th className="px-4 py-3.5 font-mono text-right text-slate-500">{MONTH_NAMES[lastMonth].slice(0,3)} Tonnage</th>
-              <th className="px-4 py-3.5 font-mono text-right text-indigo-700">{MONTH_NAMES[thisMonth].slice(0,3)} Tonnage</th>
-              <th className="px-4 py-3.5 font-mono text-right text-slate-500">{MONTH_NAMES[lastMonth].slice(0,3)} Value</th>
-              <th className="px-4 py-3.5 font-mono text-right text-indigo-700">{MONTH_NAMES[thisMonth].slice(0,3)} Value</th>
-              <th className="px-4 py-3.5 text-center">Value Δ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 font-medium">
-            {rows.map((row) => (
-              <tr key={row.polymer} className="hover:bg-slate-50/80 transition">
-                <td className="px-4 py-3.5">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-indigo-500 inline-block"/>
-                    <span className="font-extrabold text-slate-900">{row.polymer}</span>
-                  </span>
-                </td>
-                <td className="px-4 py-3.5 text-center font-bold text-slate-600">{row.lastOrders}</td>
-                <td className="px-4 py-3.5 text-center font-extrabold text-indigo-700">{row.thisOrders}</td>
-                <td className="px-4 py-3.5 font-mono text-right text-slate-600">{formatMt(row.lastTonnage, 0)}</td>
-                <td className="px-4 py-3.5 font-mono text-right font-extrabold text-indigo-700">{formatMt(row.thisTonnage, 0)}</td>
-                <td className="px-4 py-3.5 font-mono text-right text-slate-600">{formatInr(row.lastValue)}</td>
-                <td className="px-4 py-3.5 font-mono text-right font-extrabold text-indigo-700">{formatInr(row.thisValue)}</td>
-                <td className="px-4 py-3.5 text-center">
-                  <DeltaBadge last={row.lastValue} curr={row.thisValue} />
-                </td>
-              </tr>
-            ))}
-
-            {/* Grand Total Row */}
-            <tr className="border-t-2 border-slate-300 bg-slate-100/70 font-extrabold">
-              <td className="px-4 py-4 text-slate-900 font-black text-xs">TOTAL (All Polymers)</td>
-              <td className="px-4 py-4 text-center text-slate-700">{grandLast.orders}</td>
-              <td className="px-4 py-4 text-center text-indigo-800">{grandThis.orders}</td>
-              <td className="px-4 py-4 font-mono text-right text-slate-700">{formatMt(grandLast.tonnage, 0)}</td>
-              <td className="px-4 py-4 font-mono text-right text-indigo-800">{formatMt(grandThis.tonnage, 0)}</td>
-              <td className="px-4 py-4 font-mono text-right text-slate-700">{formatInr(grandLast.value)}</td>
-              <td className="px-4 py-4 font-mono text-right text-indigo-800">{formatInr(grandThis.value)}</td>
-              <td className="px-4 py-4 text-center">
-                <DeltaBadge last={grandLast.value} curr={grandThis.value} />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-// ─── Main Manufacturer Dashboard ─────────────────────────────────────────────
 export function ManufacturerDashboard() {
   const { orders, advancePipeline, approveCredit } = usePortal();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -404,10 +232,7 @@ export function ManufacturerDashboard() {
         </div>
       </section>
 
-      {/* SECTION 2: MONTHLY SALES COMPARISON TABLE */}
-      <MonthlySalesComparison orders={orders} />
-
-      {/* SECTION 3: MASTER INCOMING ORDERS QUEUE */}
+      {/* SECTION 2: MASTER INCOMING ORDERS QUEUE */}
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {/* Controls Bar - Mobile & Tablet Responsive */}
         <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 p-3.5 sm:p-5 md:flex-row md:items-center md:justify-between">
@@ -634,7 +459,7 @@ export function ManufacturerDashboard() {
         </div>
       </section>
 
-      {/* SECTION 4: DYNAMIC ORDER DETAILS MODAL - Enterprise Light */}
+      {/* SECTION 3: DYNAMIC ORDER DETAILS MODAL - Enterprise Light */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
           <div className="relative w-full max-w-4xl max-h-[92dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl">
