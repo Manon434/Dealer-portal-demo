@@ -9,6 +9,15 @@ import { Checkout } from './pages/Checkout';
 import { Orders } from './pages/Orders';
 import { Ledger } from './pages/Ledger';
 
+import { ManufacturerExecutiveDashboard } from './pages/ManufacturerExecutiveDashboard';
+import { SalesPerformance } from './pages/SalesPerformance';
+import { DealerNetwork } from './pages/dealerNetwork';
+import { Dealer360 } from './pages/Dealer360';
+import { OrderAging } from './pages/OrderAging';
+
+
+
+
 import { ManufacturerDashboard } from './pages/ManufacturerDashboard';
 
 function Workspace() {
@@ -52,7 +61,20 @@ function Workspace() {
             </div>
           </header>
           <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 pb-24 sm:px-5 sm:py-6 md:pb-6 lg:px-6 bg-slate-50">
-            <ManufacturerDashboard />
+            // <ManufacturerDashboard />
+            {view === 'sales' ? (
+  <SalesPerformance />
+) : view === 'dealers' ? (
+  <DealerNetwork />
+) : view === 'dealer360' ? (
+  <Dealer360 />
+) : view === 'aging' ? (
+  <OrderAging />
+) : view === 'dashboard' ? (
+  <ManufacturerExecutiveDashboard />
+) : (
+  <ManufacturerDashboard />
+)}
           </main>
         </div>
       </div>

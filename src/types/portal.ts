@@ -1,6 +1,17 @@
 export type UserRole = 'dealer' | 'manufacturer';
 
-export type PortalView = 'dashboard' | 'catalog' | 'checkout' | 'orders' | 'ledger';
+// export type PortalView = 'dashboard' | 'catalog' | 'checkout' | 'orders' | 'ledger';
+export type PortalView =
+  | 'dashboard'
+  | 'catalog'
+  | 'checkout'
+  | 'orders'
+  | 'ledger'
+  | 'sales'
+  | 'dealers'
+  | 'dealer360'
+  | 'aging'
+  | 'manufacturer-orders';
 
 export type MasterbatchColor =
   | 'Natural'
